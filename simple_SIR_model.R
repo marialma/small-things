@@ -25,9 +25,9 @@ SIR_ode <- function(time, state, theta) {
 }
 
 
-theta <- c(R0 = 2, D = 14, N = 300000)
+theta <- c(R0 = 1.4, D = 7, N = 100)
 
-initState <- c(S=199999, I=1, R=100000)
+initState <- c(S=49, I=1, R=50)
 
 # 
 # R0 = basic reproductive number
