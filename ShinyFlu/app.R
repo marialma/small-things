@@ -3,6 +3,7 @@ library(shiny)
 library(dplyr)
 library(ggplot2)
 library(deSolve)
+#ODE code ----
 SIR_ode <- function(time, state, theta) {
   beta <- theta["R0"] / theta["D"]
   rec <- 1 / theta["D"]
@@ -21,49 +22,54 @@ SIR_ode <- function(time, state, theta) {
   return(list(c(dS, dI, dR)))
 }
 
-# Define UI for app that draws a histogram ----
+# Define UI ----
 ui <- fluidPage(
   
-  # App title ----
-  titlePanel("SIR Model"),
+  titlePanel("A Simple Flu Model"),
   
-  # Sidebar layout with input and output definitions ----
+  # Sidebar ----
   sidebarLayout(
-    
-    # Sidebar panel for inputs ----
+
     sidebarPanel(
-      
-      # Input: Slider for the number of bins ---
       sliderInput("totalpop", 
                   label = "Total Population",
                   min= 0, max = 10000, value = 1000),
-      sliderInput("R0", 
-                  label = "R0",
-                  min= 1, max = 16, value = 1.4, step = 0.1),
       sliderInput("resistant", 
                   label = "Fraction of the population that has been vaccinated",
-                  min= 0, max = 1, value = 0.3),
+                  min= 0, max = 1, value = 0.4),
       sliderInput("VE", 
-                  label = "Vaccine Efficacy",
-                  min= 0, max = 1, value = 0.3)
-    ),
+                  label = "Vaccine Effectiveness",
+                  min= 0, max = 1, value = 0.3),
+      sliderInput("R0", 
+                  label = "R0 (A measure of how infectious a disease is)",
+                  min= 1, max = 16, value = 1.4, step = 0.1)
+      ),
     
-    
-    # Main panel for displaying outputs ----
+
     mainPanel(
+      p("This page contains a very simple model for flu. It's based on what is known as an", strong("SIR model."), 
+        "This model is extremely pared down and is intended to serve as an illustration of concepts. (A more detailed description of this model can be found below.)"),
+      p("Use the sliders at the left to change the parameters."),
+      p("The R0 is known as the", strong("basic reproductive number."), "It is the average number of new infections that one infection will generate. So, an R0 of 2 means that each infection will lead to two more infections.
+        The default R0 here is 1.4, meant to simulate flu."), 
+      p(textOutput("echo")),
       
-      # Output: Histogram ----
+      p("This bar chart shows the number of people that would be infected under the conditions indicated. Try it out!"), p("See what happens if you increase the number of vaccinated people, or if you increase the effectiveness of the vaccine!"),
+      plotOutput("numinfected"),
+      p("Below is a chart that shows progression through an outbreak. Time is given in days.
+        At any given time point, this shows how many people would be susceptible to infection, infected, or recovered/resistant to infection."),
       plotOutput("sirplot"),
-      textOutput("numinfected")
-      
+      p(strong("Model Details:"), "This is the basic SIR model, assuming that the population mixes evenly. People start off either susceptible or vaccinated (resistant), with a single person who is infected. 
+        No new vaccinations happen throughout the simulation. Susceptible people who become infected recover 7 days later. People who recover or are vaccinated can't be infected again. This model does not include deaths, or take age structures into consideration.")
     )
   )
 )
 
-# Define server logic required to draw a histogram ----
 server <- function(input, output) {
   
-
+  output$echo <- renderText({
+    paste("Currently, the estimates are for what an outbreak might look like in a population with", input$totalpop[1], "people, where", input$resistant*100, "% of the population is vaccinated with a vaccine that is", input$VE *100, "% effective,")
+  })
   output$sirplot <- renderPlot({
     theta <- c(R0 = input$R0[1], D = 7, N = input$totalpop[1])
 
@@ -71,14 +77,19 @@ server <- function(input, output) {
     times <- seq(0, 365, by = 1) 
     trajModel <- data.frame(ode(y=initState, times=times, func=SIR_ode, 
                                 parms=theta, method = "ode45"))
-    plot(trajModel$time, trajModel$S, type="l", frame=FALSE, col = "black", ylim = c(0,theta["N"]))
-    lines(trajModel$time, trajModel$R, col = "blue", type = "l")
-    lines(trajModel$time, trajModel$I, col = "red", type = "l")
-    legend("topright", legend=c("Susceptible", "Infected", "Resistant/Recovered"),
-           col=c("black", "red", "blue"), bty = "n", lty=1:1, cex=0.8)
+    #plot(trajModel$time, trajModel$S, type="l", frame=FALSE, col = "black", ylim = c(0,theta["N"]))
+    #lines(trajModel$time, trajModel$R, col = "blue", type = "l")
+    #lines(trajModel$time, trajModel$I, col = "red", type = "l")
+    #legend("topright", legend=c("Susceptible", "Infected", "Resistant/Recovered"),
+    #       col=c("black", "red", "blue"), bty = "n", lty=1:1, cex=0.8)
+    newdat <- reshape2::melt(trajModel,id="time")
+    ggplot(newdat) + geom_line(aes(x=time,y=value,color=variable)) + 
+      labs(x="Time (days)", y="Population") + 
+      theme_bw() + theme(legend.title=element_blank()) +
+      scale_color_manual(values = c("black", "maroon", "blue"), labels = c("Susceptible", "Infected", "Recovered/Vaccinated"))
   })
   
-  output$numinfected <- renderText({ 
+  output$numinfected <- renderPlot({ 
     theta <- c(R0 = input$R0[1], D = 7, N = input$totalpop[1])
     
     initState <- c(S=input$totalpop[1] - input$resistant[1]*input$VE[1] * input$totalpop[1], I=1, R=input$resistant[1]*input$VE[1]*input$totalpop[1])
@@ -86,8 +97,12 @@ server <- function(input, output) {
     trajModel <- data.frame(ode(y=initState, times=times, func=SIR_ode, 
                                 parms=theta, method = "ode45"))
     infectednumbers <- input$totalpop[1] - initState["R"] - tail(trajModel$S, n=1)
-    paste("By the end of the outbreak, the number of total infected patients is", round(infectednumbers, digits = 0))
-  })  
+    df <- data.frame(infected = c("Infected"), total=input$totalpop[1],inf=c(infectednumbers))
+    df<- mutate(df, pct = inf/total)
+    ggplot(df, aes(x=infected, y=inf, label = paste(round(inf),"infected individuals"))) + geom_col(width = .5, fill = "maroon") + ylim(0,input$totalpop[1]) +
+      theme(axis.title.x=element_blank(), axis.text.x=element_blank(), axis.ticks.x=element_blank()) + xlab("Infected") +
+      ylab("Number of Infected Patients") + geom_label(nudge_y=-30) + theme_bw() 
+    })  
 }
 
 # Create Shiny app ----
