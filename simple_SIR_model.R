@@ -38,6 +38,18 @@ times <- seq(0, 365, by = 1) #how long to run this
 trajModel <- data.frame(ode(y=initState, times=times, func=SIR_ode, 
                             parms=theta, method = "ode45"))
 
-ggplot(trajModel, aes(x=time))+ geom_line(aes(y=I), color = 'blue') + geom_line(aes(y=R), color = 'red') + geom_line(aes(y=S))
+newdat <- reshape2::melt(trajModel,id="time")
+ggplot(newdat) +
+  geom_line(aes(x=time,y=value,color=variable)) + labels(x="Time (days)", y="Population")
+  scale_color_manual(values = c("black", "red", "blue"), labels = c("Susceptible", "Infected", "Resistant/Recovered"))
 
+
+ggplot(trajModel, aes(x=time))+ geom_line(aes(y=I), color = 'blue') + 
+  geom_line(aes(y=R, label = R), color = 'red') +
+  geom_line(aes(y=S))
+
+#infectednumbers <- theta["N"] - initState["R"] - tail(trajModel$S, n=1)
+#df <- data.frame(vax = c("vax"), total=theta["N"],inf=c(infectednumbers))
+#df<- mutate(df, pct = inf/total)
+#ggplot(df, aes(x=vax, y=pct)) + geom_col() + ylim(0,1)
 # want: slides for people to adjust R0, infectious period, total population. 
