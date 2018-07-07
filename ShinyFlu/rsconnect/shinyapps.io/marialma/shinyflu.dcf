@@ -1,0 +1,10 @@
+name: shinyflu
+title:
+username:
+account: marialma
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 347862
+bundleId: 1469811
+url: https://marialma.shinyapps.io/shinyflu/
+when: 1531001081.96384
