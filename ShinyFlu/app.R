@@ -104,7 +104,7 @@ server <- function(input, output) {
                                 parms=theta, method = "ode45"))
     infectednumbers <- (input$totalpop[1] - input$resistant[1]*input$VE[1] * input$totalpop[1] - tail(trajModel$S, n=1))
     percent_sick <- ((infectednumbers / input$totalpop[1]) *100)
-    print(c(round(infectednumbers, digits = 0), "people will get sick, which accounts for", round(percent_sick, digits = 1), "% of the population"))
+    print(c("If", input$resistant[1]*100, "% of the population is vaccinated with a vaccine that is", input$VE[1]*100, "% effective, then", round(infectednumbers, digits = 0), "people will get sick, which accounts for", round(percent_sick, digits = 1), "% of the population"))
     
     #df <- data.frame(infected = c("Infected"), total=input$totalpop[1],inf=c(infectednumbers))
     #df<- mutate(df, pct = inf/total)

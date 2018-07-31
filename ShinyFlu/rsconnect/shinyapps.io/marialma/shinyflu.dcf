@@ -5,6 +5,6 @@ account: marialma
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 347862
-bundleId: 1469811
+bundleId: 1469816
 url: https://marialma.shinyapps.io/shinyflu/
-when: 1531001081.96384
+when: 1531001549.97213
