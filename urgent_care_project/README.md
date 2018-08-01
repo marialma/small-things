@@ -6,3 +6,5 @@ Hospital data comes from [HIFLD open data](https://hifld-geoplatform.opendata.ar
 
 
 The file "distance_2018.csv" contains the closest hospital to each census tract population center. 
+
+[This paper](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2728684/) was used as a reference in that I drew inspiration for the methods from it. 
