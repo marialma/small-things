@@ -1,0 +1,85 @@
+setwd("~/Documents/GitHub/small-things/urgent_care_project")
+rm(list=ls())
+library(tidycensus)
+library(tidyverse)
+library(stringr)
+options(tigris_use_cache = TRUE)
+census_api_key("92c0f3f98616d1f0dc22c949794e68424bf7e625")
+
+dist <- read.csv('distance_2018.csv')
+
+# Stolen from: https://walkerke.github.io/2017/05/tidycensus-every-tract/
+
+library(sf)
+us <- unique(fips_codes$state)[1:51]
+totalpop_sf <- reduce(
+  map(us, function(x) {
+    #get_acs(geography = "tract", variables = "B01003_001", 
+    #        state = x, geometry = TRUE)
+    get_decennial(geography = "tract", variables = "P0010001",
+                  year = 2010, state = x, geometry = TRUE)
+  }), 
+  rbind
+)
+
+str(totalpop_sf)
+
+
+blockgroup_distances <- transmute(dist, 
+                                  STATEFP = STATEFP, 
+                                  COUNTYFP = COUNTYFP, 
+                                  TRACTCE = TRACTCE, 
+                                  POPULATION_x = POPULATION_x, 
+                                  LATITUDE = LATITUDE, 
+                                  LONGITUDE = LONGITUDE, 
+                                  dist = dist)
+
+
+blockgroup_distances$STATEFP <- str_pad(blockgroup_distances$STATEFP, 2, pad = "0")
+blockgroup_distances$COUNTYFP <- str_pad(blockgroup_distances$COUNTYFP, 3, pad = "0")
+blockgroup_distances$TRACTCE <- str_pad(blockgroup_distances$TRACTCE, 6, pad = "0")
+
+blockgroup_distances <- blockgroup_distances %>%
+  select(STATEFP, COUNTYFP, TRACTCE, POPULATION_x, LATITUDE, LONGITUDE, dist) %>%
+  filter(STATEFP != 72, POPULATION_x > 0)
+# 72 is Puerto Rico, which isn't in the Census dataset. 
+# Also, all tracts with population = 0 aren't in the census dataset either.
+
+bgdist <- transmute(blockgroup_distances,
+                    GEOID = paste0(STATEFP,COUNTYFP,TRACTCE),
+                    POPULATION_x = POPULATION_x, 
+                    LATITUDE = LATITUDE, 
+                    LONGITUDE = LONGITUDE, 
+                    dist = dist)
+
+# setdiff(bgdist$GEOID, totalpop_sf$GEOID)
+# Only one tract is missing in the two datasets now:  "12087980100", which has a population of 20 people. 
+# I'm ok with just leaving that one out...
+bgdist <- bgdist %>%
+  select(GEOID, POPULATION_x, LATITUDE, LONGITUDE, dist) %>%
+  filter(GEOID != 12087980100)
+# Removing it so I don't have to worry about breaking any joins. 
+# setdiff(bgdist$GEOID, totalpop_sf$GEOID) now returns character(0)
+
+#removing all census tracts in the geo database that don't have any population 
+geo_code <- totalpop_sf %>% 
+  select(GEOID, NAME, value, geometry) %>%
+  filter(value > 0)
+
+#merge on GEOID
+geo_dist <- merge(geo_code, bgdist, by="GEOID")
+write.csv(geo_dist, "dist_with_mapping_coords.csv")
+
+#cleanup
+rm(blockgroup_distances, geo_code, dist, bgdist, totalpop_sf)
+
+
+
+library(viridis)
+
+map <- geo_dist %>%
+  ggplot(aes(fill = dist, color = dist)) + 
+  geom_sf() + 
+  coord_sf(crs = 26911) +
+  scale_fill_viridis(option = "magma") + 
+  scale_color_viridis(option = "magma")
