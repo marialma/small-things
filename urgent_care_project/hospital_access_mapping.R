@@ -4,7 +4,7 @@ library(tidycensus)
 library(tidyverse)
 library(stringr)
 options(tigris_use_cache = TRUE)
-census_api_key("92c0f3f98616d1f0dc22c949794e68424bf7e625")
+census_api_key("92c0f3f98616d1f0dc22c949794e68424bf7e625", install = TRUE)
 
 dist <- read.csv('distance_2018.csv')
 blockgroup_distances <- transmute(dist, 
@@ -94,16 +94,80 @@ distmap <- geo_dist %>%
   scale_fill_viridis(option = "magma") + 
   scale_color_viridis(option = "magma")
 
+
+
 #############
 # PLOTTING ONLY NO MAPPING
+
+## Going to designate ~30km (35/2 miles) as an 'unreasonable' distance,
+# since the federal designation for a CAH says that a CAH has to be at 
+# least 35 miles by road away from the next nearest hospital. So, the
+# midway point for that seems to be what the federal government considers
+# to be an unreasonable distance away from a hospital.
 
 thirty_km <- filter(blockgroup_distances, dist > 30)
 forty_km <- filter(blockgroup_distances, dist > 40)
 fifty_km <- filter(blockgroup_distances, dist > 50)
-ggplot(hundred_km, aes(x=dist, fill=STATEFP)) + geom_histogram(bins=30) + 
+ggplot(thirty_km, aes(x=dist, fill=STATEFP)) + geom_histogram(bins=30) + 
   labs(title="States with tracts that are 100km away from the nearest hospital") +
   #scale_fill_discrete(labels=c("AK", "AZ","CA","FL","NE","NV","OR","SD","TX","UT")) +
   NULL
 hundred_km <- filter(blockgroup_distances, dist > 100)
 
-sum(hundred_km$POPULATION_x)
+sum(thirty_km$POPULATION_x)
+
+
+########## 
+#JUST CA
+
+
+CA <- get_decennial(geography = "tract", variables = "P0010001",
+                        year = 2010, state = "CA", geometry = TRUE)
+CA <- CA %>%
+  select(GEOID, NAME, value, geometry) %>%
+  filter(value > 0)
+
+california <- blockgroup_distances %>%
+  select(STATEFP, COUNTYFP, TRACTCE, POPULATION_x, LATITUDE, LONGITUDE, dist) %>%
+  filter(STATEFP == "06", POPULATION_x > 0)
+
+california <- transmute(california,
+                    GEOID = paste0(STATEFP,COUNTYFP,TRACTCE),
+                    POPULATION_x = POPULATION_x, 
+                    LATITUDE = LATITUDE, 
+                    LONGITUDE = LONGITUDE, 
+                    dist = dist)
+california_map <- merge(CA, california, by="GEOID")
+distmap <- california_map %>%
+  ggplot(aes(fill = dist, color = dist)) + 
+  geom_sf() + 
+  coord_sf(crs = 26911) +
+  scale_fill_viridis(option = "magma", direction = -1) + 
+  scale_color_viridis(option = "magma", direction = -1)
+
+
+##### VT ####
+
+VT <- get_decennial(geography = "tract", variables = "P0010001",
+                    year = 2010, state = "VT", geometry = TRUE)
+VT <- VT %>%
+  select(GEOID, NAME, value, geometry) %>%
+  filter(value > 0)
+
+vermont <- blockgroup_distances %>%
+  select(STATEFP, COUNTYFP, TRACTCE, POPULATION_x, LATITUDE, LONGITUDE, dist) %>%
+  filter(STATEFP == "50", POPULATION_x > 0)
+
+vermont <- transmute(vermont,
+                        GEOID = paste0(STATEFP,COUNTYFP,TRACTCE),
+                        POPULATION_x = POPULATION_x, 
+                        LATITUDE = LATITUDE, 
+                        LONGITUDE = LONGITUDE, 
+                        dist = dist)
+vt_map <- merge(VT, vermont, by="GEOID")
+distmap <- vt_map %>%
+  ggplot(aes(fill = dist, color = dist)) + 
+  geom_sf() + 
+  coord_sf(crs = 26911) +
+  scale_fill_viridis(option = "magma", direction = -1) + 
+  scale_color_viridis(option = "magma", direction = -1)
