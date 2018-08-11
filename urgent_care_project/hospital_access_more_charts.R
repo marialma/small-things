@@ -29,14 +29,6 @@ hosp_coords$COUNTYFP <- str_pad(hosp_coords$COUNTYFP, 3, pad = "0")
 hosp_coords$TRACTCE <- str_pad(hosp_coords$TRACTCE, 6, pad = "0")
 
 
-# uncomment to exclude alaska
-#blockgroup_distances <- blockgroup_distances %>%
-#  select(STATEFP, COUNTYFP, TRACTCE, POPULATION_x, LATITUDE, LONGITUDE, dist) %>%
-#  filter(STATEFP != "02")
-
-# 72 is Puerto Rico, which isn't in the Census dataset. 
-# Also, all tracts with population = 0 aren't in the census dataset either.
-
 hosp_coords <- transmute(hosp_coords,
                          GEOID = paste0(STATEFP,COUNTYFP,TRACTCE,"_"),
                          LATITUDE = LATITUDE,
@@ -52,20 +44,9 @@ hosp_coords <- transmute(hosp_coords,
                          COUNTY = COUNTY,
                          POPULATION_x = POPULATION_x)
 
-
-
-
 library(viridis)
 
-distmap <- hosp_map %>%
-  ggplot(aes(fill = distchange, color = distchange)) + 
-  geom_sf() + 
-  coord_sf(crs = 26911) +
-  scale_fill_viridis(option = "magma") + 
-  scale_color_viridis(option = "magma")
-
-
-
+#cleveland plots
 cleveland <- transmute(hosp_coords,
                        GEOID = GEOID,
                        dist = dist,
@@ -84,8 +65,6 @@ cl_label = mutate(cleveland, loc = loc, new_dist = new_dist)
 
 
 cleveland_gathered<-gather(cleveland, key, value, -GEOID, -distchange, -loc, -POPULATION_x)
-
-
 ggplot(cleveland_gathered, aes(value, GEOID)) +   geom_vline(xintercept=28, size = 1, color = "darkgrey") + 
   geom_line(aes(group=GEOID), color = "grey", size = 0.25) +
   geom_point(aes(color=key)) +
@@ -95,10 +74,10 @@ ggplot(cleveland_gathered, aes(value, GEOID)) +   geom_vline(xintercept=28, size
   labs(x= "km from population center to nearest hospital") + scale_color_discrete(name = "", labels = c("Before Closures", "After Closures"))
 NULL
 
-# to do: re-sort this list by only closures that have happened since 2015. 
-
-
+# to do: re-sort this list by only closures that have happened since 2015. ?
 ggsave("change_in_access.png", width = 6, height = 15, units = "in")
+
+
 
 # Box and Whisker plot showing change in access
 box_whisk <- transmute(hosp_coords, 
@@ -141,10 +120,7 @@ cl= cl[order(cl$new_dist),]
 cl$GEOID = factor(cl$GEOID, levels = cl$GEOID[order(-cl$distchange)])
 
 cl_label = mutate(cl, loc = loc, new_dist = new_dist, pop = POPULATION_x)
-
-
 cl_gathered<-gather(cl, key, value, -GEOID, -distchange, -loc, -POPULATION_x)
-
 
 ggplot(cl_gathered, aes(value, GEOID)) +   geom_vline(xintercept=0, size = 1, color = "darkgrey") + 
   geom_line(aes(group=GEOID), color = "grey", size = 0.25) + xlim(0,150) + 
@@ -163,13 +139,15 @@ NULL
 ggsave("cleveland.png", width = 6, height = 5)
 
 
-#Map?
+#Map for communities affected by closures
 
 map <- transmute(hosp_coords,
                  GEOID = paste0(STATEFP,COUNTYFP),
                  POPULATION_x = POPULATION_x)
 map <- map %>% group_by(GEOID) %>% summarize(pop = sum(POPULATION_x))
 
+#this part stolen from https://walkerke.github.io/2017/05/tidycensus-every-tract/, but just for counties instead. 
+# would have mapped tracts except R kept crashing. 
 
 library(sf)
 us <- unique(fips_codes$state)[1:51]
@@ -181,24 +159,14 @@ totalpop_sf <- reduce(
   rbind
 )
 
-
-library(viridis)
 merged_map <- merge(totalpop_sf, map, by="GEOID", all.x=TRUE)
 merged_map <- transmute(merged_map,
                         GEOID = GEOID,
                         pop = pop,
                         geometry = geometry)
-merged_map[is.na(merged_map)] <- 0
-
 merged_map2 <- merged_map %>%
   select(GEOID, pop, geometry) %>%
-  filter(!GEOID %in% c("02013", "02016"))
-#alaska kind of fucks up my mapping 
-
-
-merged_map2 <- merged_map %>%
-  select(GEOID, pop, geometry) %>%
-  filter(!str_detect(GEOID, "^02|^15"))
+  filter(!str_detect(GEOID, "^02|^15")) #AK and HI kind of mess up my mapping a little
 
 ggplot(merged_map2) + 
   geom_sf(aes(fill = pop), color = "grey75", lwd=0.1) + 
@@ -208,11 +176,3 @@ ggplot(merged_map2) +
   labs(title = "Counties Heavily Affected by Hospital Closures", fill = "Population Size")
 #write.csv(merged_map, "closures_map.csv")
 ggsave("merged_map.png", width = 6, height = 3)
-
-library(ggmap)
-library(maps)
-usa <- map_data("usa")
-ggplot() + geom_polygon(data = usa, aes(x=long, y=lat, group = group)) + coord_fixed(1.3) +
-  geom_point(data = hosp_coords, aes(x=old_hosp_lon, y=old_hosp_lat), color = "white", size = 1)
-
-
