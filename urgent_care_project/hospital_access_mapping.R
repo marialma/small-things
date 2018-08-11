@@ -1,3 +1,10 @@
+
+### Ignore this one, look at the other mapping R file. 
+###  I still want to run this eventually but I actually lack the RAM for it. Will get back to it eventually.
+
+
+
+
 setwd("~/Documents/GitHub/small-things/urgent_care_project")
 rm(list=ls())
 library(tidycensus)
@@ -106,13 +113,10 @@ distmap <- geo_dist %>%
 # to be an unreasonable distance away from a hospital.
 
 thirty_km <- filter(blockgroup_distances, dist > 30)
-forty_km <- filter(blockgroup_distances, dist > 40)
-fifty_km <- filter(blockgroup_distances, dist > 50)
 ggplot(thirty_km, aes(x=dist, fill=STATEFP)) + geom_histogram(bins=30) + 
   labs(title="States with tracts that are 100km away from the nearest hospital") +
   #scale_fill_discrete(labels=c("AK", "AZ","CA","FL","NE","NV","OR","SD","TX","UT")) +
   NULL
-hundred_km <- filter(blockgroup_distances, dist > 100)
 
 sum(thirty_km$POPULATION_x)
 
