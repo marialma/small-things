@@ -4,7 +4,7 @@ library(tidycensus)
 library(tidyverse)
 library(stringr)
 options(tigris_use_cache = TRUE)
-#census_api_key("92c0f3f98616d1f0dc22c949794e68424bf7e625", install = TRUE)
+
 
 dist <- read.csv('closed_er_next_closest_full.csv')
 hosp_coords <- transmute(dist, 
