@@ -73,6 +73,7 @@ rsconnect/
 
 # Folders 
 /Unused_Data
+/.ipynb_checkpoints
 
 
 # End of https://www.gitignore.io/api/r,osx
