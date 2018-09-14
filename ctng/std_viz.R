@@ -38,6 +38,17 @@ std_clean$year <- as.numeric(std_clean$year)
 
 # Data is complete
 
-ggplot(std_clean) + geom_line(aes(x= year, y= rate, color = Disease)) + facet_wrap(~ state) + 
+ggplot(std_clean) + geom_line(aes(x= year, y= rate, color = state)) + facet_wrap(~ Disease) + 
   labs(x = "Year", y = "Rate per 100,000") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ggsave("ctng_states.png", width = 10, height = 8)
+
+
+met <- read.csv("metro.csv")
+names(met) <- substring(names(met), 2)
+names(met)[1] <- "region"
+met <- gather(met, "year", "rate", 2:6)
+met$year <- as.numeric(met$year)
+
+ggplot(met) + geom_line(aes(x=year, y=rate)) + facet_wrap(~ region) 
+
+ggsave("met.png", width = 10, height = 8)
